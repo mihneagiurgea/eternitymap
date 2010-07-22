@@ -77,8 +77,8 @@ function findPlane(x, y) {
   with (this) {
     for (var i = 0; i < this.map.length; i++)
       if (this.map[i].x == x && this.map[i].y == y)
-        return i;
-    return -1;
+        return map[i];
+    return null;
   }
 }
 
@@ -86,7 +86,7 @@ function pushPlane(x, y) {
   // Pop a plane from planes deck, and push it into map at (x, y),
   // only if that location is empty.
   with (this) {
-    if (this.findPlane(x, y) == -1) {
+    if (!this.findPlane(x, y)) {
       // alert('Pushing ' + x + ',' + y);
       src = this.planes.pop();
       plane = new Plane(src, x, y);
@@ -116,5 +116,6 @@ function moveTo(x, y) {
     }
     // Shuffle removed planes back into plane deck.
     shuffle(this.planes);
+    return true;
   }
 }
