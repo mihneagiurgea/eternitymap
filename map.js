@@ -6,13 +6,6 @@ function debug(msg) {
   }
 }
 
-var kBoardWidth = 9;
-var kBoardHeight= 9;
-var kPieceWidth = 50;
-var kPieceHeight= 50;
-var kPixelWidth = 1 + (kBoardWidth * kPieceWidth);
-var kPixelHeight= 1 + (kBoardHeight * kPieceHeight);
-
 var gCanvasElement;
 var gDrawingContext;
 
@@ -36,8 +29,7 @@ function equalCoords(a, b) {
 }
 
 function getCursorPosition(e) {
-  var x;
-  var y;
+  var x, y;
   if (e.pageX || e.pageY) {
     x = e.pageX;
     y = e.pageY;
@@ -59,15 +51,20 @@ function getMapPoint(e) {
 }
 
 var hovered;
-var active;
+
+function delayedMouseMove(x, y) {
+  // Redraw map only if cursor is in the same spot.
+  if (equalCoords(hovered, new Point(x, y))) {
+    drawMap();
+  }
+}
 
 function onMouseMove(e) {
   try {
     var mapPoint = getMapPoint(e);
     if (!equalCoords(mapPoint, hovered)) {
       hovered = mapPoint;
-      drawMap();
-      // debug('MapPoint: ' + hovered.x + ', ' + hovered.y);
+      setTimeout('delayedMouseMove(' + mapPoint.x + ', ' + mapPoint.y + ')', 500);
     }
   } catch (err) {
     alert('Error in onMouseMove: ' + err);
@@ -82,6 +79,7 @@ function onClick(e) {
       debug('Valid move: ' + mapPoint.x + ', ' + mapPoint.y);
       setTimeout('drawMap();', 100);
     } else {
+      alert('You find that your planeswalking powers are somewhat limited. You cannot travel that far...');
       debug('Invalid move: ' + mapPoint.x + ', ' + mapPoint.y);
     }
 
@@ -91,11 +89,8 @@ function onClick(e) {
 }
 
 var eternityMap;
-var MAP_WIDTH = 750;
-var MAP_HEIGHT = 450;
-var PLANE_RATIO = 3 / 5;
-var MARGIN = 15;
-var BORDER = 10;
+var MAP_WIDTH, MAP_HEIGHT;
+var MARGIN = 10;
 var planeWidth, planeHeight;
 
 function fitImage(image, fitx, fity) {
@@ -114,18 +109,37 @@ function fitImage(image, fitx, fity) {
   gDrawingContext.drawImage(image, offx, offy);
 }
 
+function limitPlaneSize(image, height) {
+  var boxx, boxy, width;
+  if (!height) {
+    // Image passed as 1st parameter.
+    width = image.width;
+    height = image.height;
+  } else {
+    // Width, height passed as parameters.
+    width = image;
+  }
+  if (width > height) {
+    // Horizontal-style
+    boxx = 400;
+    boxy = 279;
+  } else {
+    // Vertical-style
+    boxx = 350;
+    boxy = 450;
+  }
+  return [Math.min(boxx, width), Math.min(boxy, height)];
+}
+
 function drawMap() {
   // Draw map border.
   gDrawingContext.save();
-  gDrawingContext.fillStyle = '#fff';
+  gDrawingContext.fillStyle = '#fef5ef';
   gDrawingContext.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
-  gDrawingContext.rect(0, 0, MAP_WIDTH, MAP_HEIGHT);
-  gDrawingContext.strokeStyle = '#000';
-  gDrawingContext.stroke();
 
   // Distribute all the space among the available planes.
   var bounds = eternityMap.getBounds();
-  var plane, x, y;
+  var plane, x, y, temp;
   planeWidth = Math.floor(MAP_WIDTH / bounds['x']['length']);
   planeHeight = Math.floor(MAP_HEIGHT / bounds['y']['length']);
 
@@ -136,37 +150,61 @@ function drawMap() {
 
     gDrawingContext.save();
     gDrawingContext.translate(x, y);
-    if (equalCoords(plane, active)) {
-      gDrawingContext.fillStyle = '#edf';
+    if (equalCoords(plane, eternityMap.active)) {
+      var halfx = planeWidth / 2;
+      var halfy = planeHeight / 2;
+      var radgrad = gDrawingContext.createRadialGradient(halfx, halfy,
+                            planeWidth * 0.10, halfx, halfy, planeWidth * 0.55);
+      radgrad.addColorStop(0, '#765cad');
+      radgrad.addColorStop(0.95, '#eee2fc');
+      radgrad.addColorStop(1, '#fef5ef');
+
+      gDrawingContext.fillStyle = radgrad;
       gDrawingContext.fillRect(0, 0, planeWidth, planeHeight);
     }
     gDrawingContext.translate(MARGIN, MARGIN);
     fitImage(plane.image, planeWidth - 2 * MARGIN, planeHeight - 2 * MARGIN);
-    gDrawingContext.restore();
+    gDrawingContext.restore()
+  }
+
+  // Highlight hellride.
+  if (hovered && eternityMap.validHellride(hovered.x, hovered.y)) {
+    debug('Hellride: ' + hovered.x + ', ' + hovered.y);
+    x = (hovered.x - bounds['x']['min']) * planeWidth;
+    y = (hovered.y - bounds['y']['min']) * planeHeight;
+    debug('Hellride x, y: ' + x + ', ' + y);
+
+    gDrawingContext.save();
+    gDrawingContext.translate(x, y);
+
+    var halfx = planeWidth / 2;
+    var halfy = planeHeight / 2;
+    var radgrad = gDrawingContext.createRadialGradient(halfx - 10, halfy + 15,
+                          planeHeight * 0.20, halfx, halfy, planeHeight * 0.45);
+    radgrad.addColorStop(0, '#000');
+    radgrad.addColorStop(0.95, '#f00');
+    radgrad.addColorStop(1, '#fef5ef');
+
+    gDrawingContext.fillStyle = radgrad;
+    gDrawingContext.fillRect(0, 0, planeWidth, planeHeight);
+    gDrawingContext.restore()
 
   }
 
   gDrawingContext.restore();
 
-  // Pop-out hovered plane.
-  if (hovered) {
+  // Pop-out hovered plane only if > 1 splanes.
+  if (hovered && eternityMap.map.length > 1) {
     plane = eternityMap.findPlane(hovered.x, hovered.y);
     if (plane) {
       gDrawingContext.save();
 
       // Put the image centered in a box. The box is limited in size and
       // has the same center as the smaller image in the eternityMap.
-      var boxx, boxy;
-      if (plane.image.width > plane.image.height) {
-        // Horizontal-style
-        boxx = 400;
-        boxy = 279;
-      }
-      else {
-        // Vertical-style
-        boxx = 375;
-        boxy = 470;
-      }
+      var boxx, boxy, temp;
+      temp = limitPlaneSize(plane.image);
+      boxx = temp[0];
+      boxy = temp[1];
       x = (plane.x - bounds['x']['min']) * planeWidth;
       y = (plane.y - bounds['y']['min']) * planeHeight;
       // Align centers.
@@ -180,44 +218,20 @@ function drawMap() {
         y = MAP_HEIGHT - boxy;
       gDrawingContext.translate(x, y);
       fitImage(plane.image, boxx, boxy);
-      // gDrawingContext.drawImage(plane.image, 0, 0);
 
       gDrawingContext.restore();
     }
   }
-
-
 }
-
-    /*
-    // Quadratric curves example
-    var ctx = gDrawingContext;
-    ctx.beginPath();
-    ctx.moveTo(75,25);
-    ctx.quadraticCurveTo(25,25,25,62.5);
-    ctx.quadraticCurveTo(25,100,50,100);
-    //ctx.quadraticCurveTo(50,120,30,125);
-    ctx.quadraticCurveTo(60,120,65,100);
-    ctx.quadraticCurveTo(125,100,125,62.5);
-    ctx.quadraticCurveTo(125,25,75,25);
-    ctx.stroke();
-    */
 
 function initGame() {
   try {
-    if (!eternityMap) {
-      eternityMap = new EternityMap(38);
-      eternityMap.moveTo(0, 0);
-      active = {'x': 0, 'y': 0};
-      // eternityMap.moveTo(0, 1);
-      // eternityMap.moveTo(1, 1);
-      // eternityMap.moveTo(2, 1);
-      // eternityMap.moveTo(3, 0);
-      // eternityMap.moveTo(3, 1);
-      // eternityMap.moveTo(3, 2);
-      // eternityMap.moveTo(4, 2);
-    }
+    eternityMap = new EternityMap(38);
+    // eternityMap.moveTo(0, 0);
+
     gCanvasElement = document.getElementById('mapCanvas');
+    gCanvasElement.width = document.width - 50;
+    gCanvasElement.height = document.height - 50;
     MAP_WIDTH = gCanvasElement.width;
     MAP_HEIGHT = gCanvasElement.height;
     gCanvasElement.addEventListener("click", onClick, false);
