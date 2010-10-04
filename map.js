@@ -94,11 +94,9 @@ var MARGIN = 10;
 var planeWidth, planeHeight;
 
 function fitImage(image, fitx, fity) {
-  var ratio = 1.0;
-  if (image.width > fitx)
-    ratio = Math.min(ratio, fitx / image.width);
-  if (image.height > fity)
-    ratio = Math.min(ratio, fity / image.height);
+  var ratio;
+  ratio = Math.min(fitx / image.width, fity / image.height);
+  ratio = Math.min(ratio, 1.5);
   gDrawingContext.scale(ratio, ratio);
   // Scaling down also affects fit parameters.
   fitx /= ratio;
@@ -119,16 +117,17 @@ function limitPlaneSize(image, height) {
     // Width, height passed as parameters.
     width = image;
   }
+  // Image sizes: (620, 433), (400, 279), (350, 450)
   if (width > height) {
     // Horizontal-style
-    boxx = 400;
-    boxy = 279;
+    boxx = 620;
+    boxy = 433;
   } else {
     // Vertical-style
-    boxx = 350;
-    boxy = 450;
+    boxx = 420;
+    boxy = 540;
   }
-  return [Math.min(boxx, width), Math.min(boxy, height)];
+  return [boxx, boxy];
 }
 
 function drawMap() {
@@ -169,10 +168,8 @@ function drawMap() {
 
   // Highlight hellride.
   if (hovered && eternityMap.validHellride(hovered.x, hovered.y)) {
-    debug('Hellride: ' + hovered.x + ', ' + hovered.y);
     x = (hovered.x - bounds['x']['min']) * planeWidth;
     y = (hovered.y - bounds['y']['min']) * planeHeight;
-    debug('Hellride x, y: ' + x + ', ' + y);
 
     gDrawingContext.save();
     gDrawingContext.translate(x, y);
@@ -193,7 +190,7 @@ function drawMap() {
 
   gDrawingContext.restore();
 
-  // Pop-out hovered plane only if > 1 splanes.
+  // Pop-out hovered plane only if > 1 planes.
   if (hovered && eternityMap.map.length > 1) {
     plane = eternityMap.findPlane(hovered.x, hovered.y);
     if (plane) {

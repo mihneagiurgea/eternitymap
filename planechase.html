@@ -1,0 +1,221 @@
+<html>
+<head>
+
+<title> Planechase </title>
+
+<script type="text/javascript">
+
+  // If new cards are added, just name them 50.jpg, 51.jpg etc,
+  // and enter here the highest number.
+  var nrPlanecards = 38;
+  var current = -1;
+  var plains = new Array();
+
+  function rand(limit) {
+    // Returns a random integer in interval [0, limit).
+    return Math.floor(Math.random() * limit);
+  }
+
+  function shuffle(arr) {
+    N = arr.length;
+    for (i = 0; i < N; i++) {
+      r = i + rand(N - i);
+      if (r != i) {
+        t = arr[i];
+        arr[i] = arr[r];
+        arr[r] = t;
+      }
+    }
+  }
+
+  function init() {
+    for (i = 0; i < nrPlanecards; i++)
+      plains[i] = i + 1;
+    shuffle(plains);
+  }
+
+  function setPlainImage() {
+    // Set the image to the current plain.
+    if (current == -1)
+      img_src = '0.jpg'
+    else
+      img_src = plains[current] + '.jpg';
+    document['planecard'].src = img_src;
+  }
+
+  function planeswalk() {
+    current++;
+    if (current >= nrPlanecards)
+    {
+      shuffle(plains);
+      current = 1;
+    }
+    setPlainImage();
+  }
+
+  function undoPlaneswalk() {
+    if (current >= 0) {
+      current--;
+      setPlainImage();
+    }
+  }
+
+  function roll() {
+    if (timeoutId) {
+      if (fading) {
+        var obj = document.getElementById('dieResult');
+        obj.FadeTimeLeft = 300.0;
+        animationCallback = delayRoll;
+      }
+      else {
+        clearTimeout(timeoutId);
+        fade('dieResult', 0.3, delayRoll);
+      }
+    }
+    else
+      showNextRoll();
+  }
+
+  function delayRoll() {
+    setTimeout(showNextRoll, 300);
+  }
+
+  function showNextRoll() {
+    d6 = rand(6) + 1;
+    switch (d6) {
+      case 1:
+        color = 'Blue';
+        result = 'Planewalk';
+        die = 'planeswalk.jpg';
+        break;
+      case 6:
+        color = 'Red';
+        result = 'Chaos';
+        die = 'chaos.jpg'
+        break;
+      default:
+        color = 'DarkGray';
+        result = 'blank';
+        die = 'blank.jpg';
+    }
+    var dieResult = document.getElementById('dieResult');
+    dieResult.style.color = color;
+    dieResult.innerHTML = result;
+    unfade(dieResult);
+    document['die'].src = die;
+    fading = false;
+    timeoutId = setTimeout("fade('dieResult', 2.0)", 2000);
+  }
+
+  function keypressed(e) {
+    if (!e) var e = window.event;
+    key = e.keycode ? e.keycode : e.which;
+    switch (key) {
+      case 114:
+        // r for rolling the die
+        roll();
+        break;
+      case 112:
+        // p for planeswalk
+        planeswalk();
+        break;
+      case 117:
+        // u for undo planeswalk
+        undoPlaneswalk();
+        break;
+    }
+  }
+
+  TimeToFade = 2000.0;
+  timeoutId = null;
+  animationCallback = null;
+  fading = false;
+
+  function unfade(obj) {
+    obj.style.opacity = 1;
+    obj.style.filter = '';
+  }
+
+  function animateFade(lastTick, eid) {
+    var curTick = new Date().getTime();
+    var elapsedTicks = curTick - lastTick;
+
+    var element = document.getElementById(eid);
+
+    if(element.FadeTimeLeft <= elapsedTicks) {
+      element.style.opacity = '0';
+      element.style.filter = 'alpha(opacity = 0)';
+      // Animation finished.
+      timeoutId = null;
+      if (animationCallback)
+        animationCallback();
+      return;
+    }
+
+    element.FadeTimeLeft -= elapsedTicks;
+    var newOpVal = element.FadeTimeLeft/TimeToFade;
+
+    element.style.opacity = newOpVal;
+    element.style.filter = 'alpha(opacity = ' + (newOpVal*100) + ')';
+
+    timeoutId = setTimeout("animateFade(" + curTick + ",'" + eid + "')", 33);
+  }
+
+  function fade(eid, timeToFade, callback) {
+    fading = true;
+    var element = document.getElementById(eid);
+    if (element == null) return;
+
+    TimeToFade = timeToFade * 1000.0;
+    animationCallback = callback;
+
+    element.FadeTimeLeft = TimeToFade;
+    timeoutId = setTimeout("animateFade(" + new Date().getTime() + ",'" + eid + "')", 33);
+  }
+
+  function debug(msg) {
+    var debugSpan = document.getElementById('debug');
+    debugSpan.innerHTML += msg;
+  }
+
+  document.onkeypress = keypressed;
+
+</script>
+
+</head>
+<body onload='init();'>
+
+  <table>
+  <tr>
+    <td width="300px" valign='top'>
+
+        <br />
+        <div style='font-weight: regular; font-size: 22px;'>
+          <span> Die result: </span>
+          <span id='dieResult'> </span>
+        </div>
+
+        <div style='font-size: 12px; position: absolute; bottom: 10px;'>
+          <u>Keyboard shortcuts:</u>
+          <ul>
+            <li><b>r</b> - Roll the planar die.</li>
+            <li><b>p</b> - Planeswalk </li>
+            <li><b>u</b> - Undo planeswalk </li>
+          </ul>
+        </div>
+
+    </td>
+    <td width="700px" align='center'>
+
+      <img alt='Roll the planar die' title='Roll the planar die'
+           style='font-size: 26px;' name='die'
+           src='blank.jpg' onClick='roll();' />
+      <br />
+      <img name='planecard' src='0.jpg' height='450px'/>
+
+    </td>
+  </tr>
+  </table>
+
+</body>
+</html>
